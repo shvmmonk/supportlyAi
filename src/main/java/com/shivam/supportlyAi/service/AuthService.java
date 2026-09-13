@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import com.shivam.supportlyAi.config.JwtUtil;
 import com.shivam.supportlyAi.dto.authResponse;
 import com.shivam.supportlyAi.dto.loginRequest;
 import com.shivam.supportlyAi.dto.signupRequest;
@@ -21,6 +22,7 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtUtil jwtUtil;
 
     public void signup(signupRequest signupRequest) {
         if (signupRequest == null || signupRequest.getEmail() == null || signupRequest.getPassword() == null) {
@@ -28,7 +30,7 @@ public class AuthService {
         }
 
         if (userRepository.findByEmail(signupRequest.getEmail()).isPresent()) {
-            throw new RuntimeException("Email already registered");
+            throw new EmailAlreadyExistsException("Email already registered");
         }
 
         User user = new User();
@@ -51,6 +53,6 @@ public class AuthService {
             throw new InvalidCredentialsException("Invalid email or password");
         }
 
-        return new authResponse(java.util.UUID.randomUUID().toString(), user.getEmail(), user.getBusinessName());
-    }
+        String token = jwtUtil.generateToken(user.getEmail());
+return new authResponse(token, user.getEmail(), user.getBusinessName(), "Login successful");    }
 }

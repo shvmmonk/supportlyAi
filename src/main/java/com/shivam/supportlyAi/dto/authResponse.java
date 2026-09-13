@@ -11,4 +11,5 @@ public class authResponse {
     private String token;
     private String email;
     private String businessName;
+    private String message;
 }
