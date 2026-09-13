@@ -24,7 +24,7 @@ import lombok.NoArgsConstructor;
 public class Agent {
     @Id 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
+    private long id;
 
     private String name; // customer support bot
 
