@@ -9,6 +9,8 @@ import com.shivam.supportlyAi.dto.authResponse;
 import com.shivam.supportlyAi.dto.loginRequest;
 import com.shivam.supportlyAi.dto.signupRequest;
 import com.shivam.supportlyAi.entity.User;
+import com.shivam.supportlyAi.exception.EmailAlreadyExistsException;
+import com.shivam.supportlyAi.exception.InvalidCredentialsException;
 import com.shivam.supportlyAi.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -39,14 +41,14 @@ public class AuthService {
 
     public authResponse login(loginRequest loginRequest) {
         if (loginRequest == null || loginRequest.getEmail() == null || loginRequest.getPassword() == null) {
-            throw new RuntimeException("Email and password are required");
+            throw new EmailAlreadyExistsException("Email and password are required");
         }
 
         User user = userRepository.findByEmail(loginRequest.getEmail())
-                .orElseThrow(() -> new RuntimeException("Invalid email or password"));
+                .orElseThrow(() -> new InvalidCredentialsException("Invalid email or password"));
 
         if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
-            throw new RuntimeException("Invalid email or password");
+            throw new InvalidCredentialsException("Invalid email or password");
         }
 
         return new authResponse(java.util.UUID.randomUUID().toString(), user.getEmail(), user.getBusinessName());
