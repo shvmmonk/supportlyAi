@@ -1,6 +1,9 @@
 package com.shivam.supportlyAi.service;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import com.shivam.supportlyAi.entity.User;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -14,14 +17,14 @@ import com.shivam.supportlyAi.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 
-@Service 
-@RequiredArgsConstructor 
+@Service
+@RequiredArgsConstructor
 
-public class AgentService{
+public class AgentService {
     private final AgentRepository agentRepository;
     private final UserRepository userRepository;
 
-    public AgentResponse createAgent(CreateAgentRequest request){
+    public AgentResponse createAgent(CreateAgentRequest request) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
 
         User owner = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("user not found"));
@@ -32,14 +35,27 @@ public class AgentService{
         agent.setOwner(owner);
         agent.setCreatedAt(LocalDateTime.now());
 
-
         Agent savedAgent = agentRepository.save(agent);
 
-return new AgentResponse(
-    savedAgent.getId(),
-    savedAgent.getName(),
-    savedAgent.getStatus(),
-    savedAgent.getCreatedAt()
-);
+        return new AgentResponse(
+                savedAgent.getId(),
+                savedAgent.getName(),
+                savedAgent.getStatus(),
+                savedAgent.getCreatedAt());
+    }
+
+    public List<AgentResponse> getAgentForCurrentUser(){
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User owner = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
+
+        List<Agent> agents = agentRepository.findByOwner(owner);
+
+        return agents.stream().map(agent -> new AgentResponse(
+            agent.getId(),
+            agent.getName(),
+            agent.getStatus(),
+            agent.getCreatedAt()
+        ))
+        .collect(Collectors.toList());
     }
 }
