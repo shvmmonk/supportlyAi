@@ -1,6 +1,16 @@
+# Environment / secrets
+src/main/resources/application.properties
+
+# Build
 target/
+
+# IDE
 .idea/
 *.iml
+.vscode/
+
+# OS
 .DS_Store
-.env
-application-local.properties
+
+# Uploaded files
+uploads/

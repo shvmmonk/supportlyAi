@@ -33,7 +33,7 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**", "/error").permitAll()
+                .requestMatchers("/api/auth/**", "/error", "/api/whatsapp/webhook").permitAll()
                 .anyRequest().authenticated()
             )
 
@@ -65,6 +65,8 @@ public class SecurityConfig {
         configuration.setAllowedHeaders(
             List.of("*")
         );
+
+
 
         configuration.setAllowCredentials(true);
 
