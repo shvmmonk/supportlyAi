@@ -14,19 +14,23 @@ public class WhatsappController {
     private final WhatsAppService whatsAppService;
 
     @PostMapping("/test-send")
-    public String testSend(@RequestParam String to, @RequestParam String message) {
+    public String testSend(@RequestParam String to, @RequestParam String message) throws Exception {
         whatsAppService.sendMessage(to, message);
         return "Message sent!";
     }
 
     @PostMapping("/webhook")
-    public String recieveMessage(@RequestParam("From") String from, @RequestParam("Body") String body) {
+    public String recieveMessage(
+            @RequestParam("From") String from,
+            @RequestParam("Body") String body) throws Exception {
+
         System.out.println("Message from: " + from);
         System.out.println("Message body: " + body);
 
-        whatsAppService.sendMessage(from.replace("whatsapp:", ""), "You said: " + body);
+        whatsAppService.sendMessage(
+                from.replace("whatsapp:", ""),
+                body);
 
         return "OK";
-
     }
 }

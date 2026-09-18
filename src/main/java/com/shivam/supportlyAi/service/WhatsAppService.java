@@ -13,8 +13,9 @@ public class WhatsAppService {
     private String twilioWhatsAppNumber;
 
     public void sendMessage(String toNumber, String messageBody) {
+
         Message.creator(
-                new PhoneNumber("whatsapp:" + toNumber),
+                new PhoneNumber(toNumber),
                 new PhoneNumber(twilioWhatsAppNumber),
                 messageBody
         ).create();
