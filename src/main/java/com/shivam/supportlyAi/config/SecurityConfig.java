@@ -10,7 +10,6 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -33,7 +32,11 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**", "/error", "/api/whatsapp/webhook").permitAll()
+                .requestMatchers(
+                    "/api/auth/**",
+                    "/error",
+                    "/api/whatsapp/webhook"
+                ).permitAll()
                 .anyRequest().authenticated()
             )
 
@@ -43,7 +46,7 @@ public class SecurityConfig {
 
             .addFilterBefore(
                 jwtAuthFilter,
-                UsernamePasswordAuthenticationFilter.class
+                org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class
             );
 
         return http.build();
@@ -65,8 +68,6 @@ public class SecurityConfig {
         configuration.setAllowedHeaders(
             List.of("*")
         );
-
-
 
         configuration.setAllowCredentials(true);
 

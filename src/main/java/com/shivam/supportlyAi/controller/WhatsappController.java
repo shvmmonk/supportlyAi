@@ -1,36 +1,31 @@
 package com.shivam.supportlyAi.controller;
 
-import org.springframework.web.bind.annotation.*;
-
-import com.shivam.supportlyAi.service.WhatsAppService;
-
-import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/whatsapp")
-@RequiredArgsConstructor
 public class WhatsappController {
 
-    private final WhatsAppService whatsAppService;
-
-    @PostMapping("/test-send")
-    public String testSend(@RequestParam String to, @RequestParam String message) throws Exception {
-        whatsAppService.sendMessage(to, message);
-        return "Message sent!";
-    }
-
-    @PostMapping("/webhook")
-    public String recieveMessage(
+    @PostMapping(
+            value = "/api/whatsapp/webhook",
+            consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE,
+            produces = MediaType.APPLICATION_XML_VALUE
+    )
+    public String receiveMessage(
             @RequestParam("From") String from,
-            @RequestParam("Body") String body) throws Exception {
+            @RequestParam("Body") String body
+    ) {
 
         System.out.println("Message from: " + from);
         System.out.println("Message body: " + body);
 
-        whatsAppService.sendMessage(
-                from.replace("whatsapp:", ""),
-                body);
-
-        return "OK";
+        return """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <Response>
+                    <Message>Hello! SupportlyAI received your message.</Message>
+                </Response>
+                """;
     }
 }
