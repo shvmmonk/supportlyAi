@@ -36,7 +36,10 @@ public class SecurityConfig {
                                 "/api/auth/**",
                                 "/error",
                                 "/api/whatsapp/webhook",
-                                "/api/ai/test")
+                                "/api/ai/test",
+                                "/api/pdf/test",
+                                "/api/pdf/chunks",
+                                "/api/embedding/test")
                         .permitAll()
                         .anyRequest().authenticated())
 

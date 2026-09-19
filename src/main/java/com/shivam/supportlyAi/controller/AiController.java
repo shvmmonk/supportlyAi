@@ -1,6 +1,8 @@
 package com.shivam.supportlyAi.controller;
 
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -9,8 +11,8 @@ public class AiController {
 
     private final ChatClient chatClient;
 
-    public AiController(ChatClient.Builder chatClientBuilder) {
-        this.chatClient = chatClientBuilder.build();
+    public AiController(OpenAiChatModel openAiChatModel) {
+        this.chatClient = ChatClient.create(openAiChatModel);
     }
 
     @GetMapping("/api/ai/test")
