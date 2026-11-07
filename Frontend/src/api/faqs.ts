@@ -34,4 +34,8 @@ export const faqsApi = {
     );
     return response.data;
   },
+
+  deleteFaq: async (agentId: number, documentId: number): Promise<void> => {
+    await apiClient.delete(`/api/agents/${agentId}/faqs/${documentId}`);
+  },
 };

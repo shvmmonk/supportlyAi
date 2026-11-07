@@ -1,14 +1,12 @@
-package com.shivam.supportlyAi.controller;
 
-import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+package com.shivam.supportlyAi.controller;
 
 import com.shivam.supportlyAi.service.RagAnswerService;
 import com.shivam.supportlyAi.service.WhatsAppService;
-
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
@@ -23,21 +21,12 @@ public class WhatsappController {
     )
     public String receiveMessage(
             @RequestParam("From") String from,
-            @RequestParam("Body") String body
-    ) {
+            @RequestParam("Body") String body) {
 
-        System.out.println("Message from: " + from);
-        System.out.println("Message body: " + body);
+        String answer = ragAnswerService.answerQuestion(body, 13L);
 
-        // Temporary: using agentId = 1
-        String answer = ragAnswerService.answerQuestion(body, 1L);
-
-        // Send AI answer back to the customer through Twilio
         whatsAppService.sendMessage(from, answer);
 
-        System.out.println("AI reply sent: " + answer);
-
-        // No TwiML message here
         return "<Response></Response>";
     }
 }

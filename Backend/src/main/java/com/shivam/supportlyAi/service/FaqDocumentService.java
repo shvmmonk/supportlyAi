@@ -6,6 +6,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.shivam.supportlyAi.dto.FaqDocumentResponse;
@@ -140,5 +141,49 @@ public class FaqDocumentService {
                         doc.getUploadedAt()
                 ))
                 .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void deleteFaq(Long agentId, Long documentId) {
+        String email = SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getName();
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("User not found")
+                );
+
+        Agent agent = agentRepository.findById(agentId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Agent not found with ID: " + agentId)
+                );
+
+        if (!agent.getOwner().getId().equals(user.getId())) {
+            throw new UnauthorizedAccessException(
+                    "You don't have permission to modify this agent's documents"
+            );
+        }
+
+        FaqDocument faqDocument = faqDocumentRepository.findById(documentId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Document not found with ID: " + documentId)
+                );
+
+        if (faqDocument.getAgent().getId() != agent.getId()) {
+            throw new UnauthorizedAccessException(
+                    "Document does not belong to the specified agent"
+            );
+        }
+
+        // 1. Remove associated vectors from Qdrant
+        ragService.deleteDocumentVectors(faqDocument.getId());
+
+        // 2. Remove physical file from disk
+        fileStorageService.deleteFile(faqDocument.getFilePath());
+
+        // 3. Remove DB record
+        faqDocumentRepository.delete(faqDocument);
     }
 }

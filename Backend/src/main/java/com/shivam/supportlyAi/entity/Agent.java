@@ -2,6 +2,7 @@ package com.shivam.supportlyAi.entity;
 
 import java.time.LocalDateTime;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -27,6 +28,9 @@ public class Agent {
     private long id;
 
     private String name; // customer support bot
+
+    @Column(columnDefinition = "TEXT")
+    private String description;
 
     @Enumerated(EnumType.STRING)
     private AgentStatus status;

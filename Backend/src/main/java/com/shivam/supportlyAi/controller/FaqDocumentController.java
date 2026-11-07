@@ -34,4 +34,12 @@ public class FaqDocumentController {
         List<FaqDocumentResponse> faqs = faqDocumentService.getFaqsForAgent(agentId);
         return ResponseEntity.ok(faqs);
     }
+
+    @DeleteMapping("/{agentId}/faqs/{documentId}")
+    public ResponseEntity<Void> deleteFaq(
+            @PathVariable Long agentId,
+            @PathVariable Long documentId) {
+        faqDocumentService.deleteFaq(agentId, documentId);
+        return ResponseEntity.noContent().build();
+    }
 }

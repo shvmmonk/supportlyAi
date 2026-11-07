@@ -11,6 +11,7 @@ import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.ai.vectorstore.filter.FilterExpressionBuilder;
 import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
@@ -50,14 +51,25 @@ public class RagService {
     // ===============================
     public List<Document> search(String question, Long agentId) {
 
-    SearchRequest request = SearchRequest.builder()
-            .query(question)
-            .topK(5)
-            .similarityThreshold(0.0)
-            .build();
+        FilterExpressionBuilder b = new FilterExpressionBuilder();
 
-    return vectorStore.similaritySearch(request);
-}
+        SearchRequest request = SearchRequest.builder()
+                .query(question)
+                .topK(5)
+                .similarityThreshold(0.0)
+                .filterExpression(b.eq("agentId", agentId).build())
+                .build();
+
+        return vectorStore.similaritySearch(request);
+    }
+
+    // ===============================
+    // DELETE VECTORS FOR DOCUMENT
+    // ===============================
+    public void deleteDocumentVectors(Long documentId) {
+        FilterExpressionBuilder b = new FilterExpressionBuilder();
+        vectorStore.delete(b.eq("documentId", documentId).build());
+    }
 
     // ===============================
     // EXTRACT PDF TEXT

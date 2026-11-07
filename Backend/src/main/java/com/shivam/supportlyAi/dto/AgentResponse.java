@@ -14,6 +14,14 @@ import lombok.NoArgsConstructor;
 public class AgentResponse {
     private long id;
     private String name;
+    private String description;
     private AgentStatus status;
     private LocalDateTime createdAt;
+
+    public AgentResponse(long id, String name, AgentStatus status, LocalDateTime createdAt) {
+        this.id = id;
+        this.name = name;
+        this.status = status;
+        this.createdAt = createdAt;
+    }
 }

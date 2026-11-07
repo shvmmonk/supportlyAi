@@ -9,33 +9,44 @@ import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+
 @Service 
 public class FileStorageService {
     
     @Value("${file.upload-dir}")
     private String uploadDir;
 
-    public String storeFile(MultipartFile file) throws IOException{
+    public String storeFile(MultipartFile file) throws IOException {
 
         Path uploadPath = Paths.get(uploadDir);
-        if(!Files.exists(uploadPath)){
+        if (!Files.exists(uploadPath)) {
             Files.createDirectories(uploadPath);
         }
 
-        //to create unique file name
+        // to create unique file name
         String originalFileName = file.getOriginalFilename();
         String uniqueFileName = UUID.randomUUID().toString() + "_" + originalFileName;
 
-        //target path
+        // target path
         Path targetPath = uploadPath.resolve(uniqueFileName);
 
-        //copying files to that path
+        // copying files to that path
         Files.copy(file.getInputStream(), targetPath);
 
-        //return 
+        // return 
         return targetPath.toString();
+    }
 
-        
-
+    public void deleteFile(String filePath) {
+        if (filePath == null || filePath.isBlank()) {
+            return;
+        }
+        try {
+            Path path = Paths.get(filePath);
+            Files.deleteIfExists(path);
+        } catch (IOException e) {
+            // Log and ignore to prevent failure of DB/vector cleanup
+            System.err.println("Could not delete file from disk: " + filePath + " - " + e.getMessage());
+        }
     }
 }
