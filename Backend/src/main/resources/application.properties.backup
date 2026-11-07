@@ -1,0 +1,61 @@
+spring.config.import=optional:file:.env[.properties]
+
+spring.application.name=supportlyAi
+
+# ===============================
+# DATABASE
+# ===============================
+spring.datasource.url=jdbc:mysql://localhost:3307/supportlyAi_db
+spring.datasource.username=root
+spring.datasource.password=yourpassword
+
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+
+
+# ===============================
+# JWT
+# ===============================
+jwt.secret=wqK5ZIHFSrafphSiMRt4h+h1//TgozPhgn5IIgiQzA4=
+jwt.expiration=86400000
+
+logging.level.org.springframework.security=DEBUG
+
+
+# ===============================
+# FILE UPLOAD
+# ===============================
+file.upload-dir=uploads
+
+
+# ===============================
+# TWILIO
+# ===============================
+twilio.account.sid=${TWILIO_ACCOUNT_SID}
+twilio.auth.token=${TWILIO_AUTH_TOKEN}
+twilio.whatsapp.number=${TWILIO_WHATSAPP_NUMBER}
+twilio.content.sid=${TWILIO_CONTENT_SID}
+
+
+# ===============================
+# GROQ - LLM
+# ===============================
+spring.ai.model.chat=openai
+spring.ai.openai.api-key=${GROQ_API_KEY}
+spring.ai.openai.base-url=https://api.groq.com/openai/v1
+spring.ai.openai.chat.model=openai/gpt-oss-20b
+
+
+# ===============================
+# OLLAMA - EMBEDDINGS
+# ===============================
+spring.ai.ollama.base-url=http://localhost:11434
+spring.ai.ollama.embedding.options.model=nomic-embed-text
+
+# ===============================
+# QDRANT - VECTOR STORE
+# ===============================
+spring.ai.vectorstore.qdrant.host=localhost
+spring.ai.vectorstore.qdrant.port=6334
+spring.ai.vectorstore.qdrant.collection-name=vector_store
+spring.ai.vectorstore.qdrant.initialize-schema=true

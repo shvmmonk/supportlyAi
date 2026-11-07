@@ -1,0 +1,25 @@
+package com.shivam.supportlyAi.config;
+
+import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.embedding.EmbeddingModel;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
+
+@Configuration
+public class AiConfig {
+
+    @Bean
+    @Primary
+    public EmbeddingModel primaryEmbeddingModel(
+            @Qualifier("ollamaEmbeddingModel") EmbeddingModel ollamaEmbeddingModel) {
+
+        return ollamaEmbeddingModel;
+    }
+
+    @Bean
+    public ChatClient chatClient(ChatClient.Builder chatClientBuilder) {
+        return chatClientBuilder.build();
+    }
+}
