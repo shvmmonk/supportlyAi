@@ -13,9 +13,14 @@ import {
   Clock,
   ShieldCheck,
   CheckCircle2,
+  Pencil,
+  Power,
 } from 'lucide-react';
 import { agentsApi } from '@/api/agents';
 import { faqsApi } from '@/api/faqs';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -28,6 +33,9 @@ export const AgentDetailPage: React.FC = () => {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
@@ -43,6 +51,47 @@ export const AgentDetailPage: React.FC = () => {
   });
 
   const selectedAgent = agents.find((a) => a.id === agentId);
+
+  const editMutation = useMutation({
+    mutationFn: (data: { name: string; description: string }) => agentsApi.updateAgent(agentId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agents'] });
+      setIsEditOpen(false);
+      toast.success('Agent updated successfully');
+    },
+    onError: (err: Error) => toast.error('Unable to update agent', { description: err.message }),
+  });
+
+  const statusMutation = useMutation({
+    mutationFn: (status: 'ACTIVE' | 'INACTIVE') => agentsApi.updateAgentStatus(agentId, status),
+    onSuccess: (_, status) => {
+      queryClient.invalidateQueries({ queryKey: ['agents'] });
+      toast.success(status === 'ACTIVE' ? 'Agent activated' : 'Agent deactivated');
+    },
+    onError: (err: Error) => toast.error('Unable to change status', { description: err.message }),
+  });
+
+  const openEdit = () => {
+    if (!selectedAgent) return;
+    setEditName(selectedAgent.name);
+    setEditDescription(selectedAgent.description ?? '');
+    setIsEditOpen(true);
+  };
+
+  const saveEdit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const name = editName.trim();
+    const description = editDescription.trim();
+    if (name.length < 2 || name.length > 100) {
+      toast.error('Agent name must be 2–100 characters');
+      return;
+    }
+    if (description.length > 500) {
+      toast.error('Description must be 500 characters or fewer');
+      return;
+    }
+    editMutation.mutate({ name, description });
+  };
 
   // Fetch FAQs for this agent
   const {
@@ -184,6 +233,9 @@ export const AgentDetailPage: React.FC = () => {
                     {statusMeta.label}
                   </span>
                 </div>
+                {selectedAgent.description && (
+                  <p className="mt-2 text-sm text-muted-foreground">{selectedAgent.description}</p>
+                )}
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-xs text-muted-foreground">
                   <span>Agent ID: #{selectedAgent.id}</span>
                   <span>&bull;</span>
@@ -195,15 +247,47 @@ export const AgentDetailPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Backend constraint badge: No edit/delete endpoints exist */}
-            <div className="flex items-center space-x-2">
-              <span className="rounded-lg bg-muted/60 px-2.5 py-1 text-[11px] font-medium text-muted-foreground border border-border">
-                Spring Boot REST Agent
-              </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="outline" onClick={openEdit} disabled={editMutation.isPending}>
+                <Pencil className="mr-2 h-4 w-4" /> Edit Agent
+              </Button>
+              <Button
+                variant="outline"
+                disabled={statusMutation.isPending}
+                isLoading={statusMutation.isPending}
+                onClick={() => statusMutation.mutate(selectedAgent.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE')}
+              >
+                <Power className="mr-2 h-4 w-4" />
+                {selectedAgent.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+              </Button>
             </div>
           </div>
         </div>
       </Card>
+
+      <Dialog open={isEditOpen} onOpenChange={(open) => { if (!editMutation.isPending) setIsEditOpen(open); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Agent</DialogTitle>
+            <DialogDescription>Update your agent name and description.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={saveEdit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="editAgentName">Agent Name</Label>
+              <Input id="editAgentName" value={editName} onChange={(e) => setEditName(e.target.value)} maxLength={100} disabled={editMutation.isPending} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="editAgentDescription">Description</Label>
+              <textarea id="editAgentDescription" value={editDescription} onChange={(e) => setEditDescription(e.target.value)} maxLength={500} disabled={editMutation.isPending} rows={4} className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+              <p className="text-right text-xs text-muted-foreground">{editDescription.length}/500</p>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)} disabled={editMutation.isPending}>Cancel</Button>
+              <Button type="submit" disabled={editMutation.isPending} isLoading={editMutation.isPending}>Save Changes</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Knowledge Base & FAQs Management */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -337,7 +421,7 @@ export const AgentDetailPage: React.FC = () => {
                       className="flex items-center justify-between py-3.5 first:pt-0 last:pb-0"
                     >
                       <div className="flex items-center space-x-3 min-w-0">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-500/10text-indigo-600 dark:text-indigo-400">
                           <FileCheck className="h-5 w-5" />
                         </div>
                         <div className="min-w-0">
