@@ -57,7 +57,7 @@ public class RagService {
                 .query(question)
                 .topK(5)
                 .similarityThreshold(0.0)
-                .filterExpression(b.eq("agentId", agentId).build())
+                .filterExpression(b.eq("agentId", agentId.toString()).build())
                 .build();
 
         return vectorStore.similaritySearch(request);
@@ -68,7 +68,7 @@ public class RagService {
     // ===============================
     public void deleteDocumentVectors(Long documentId) {
         FilterExpressionBuilder b = new FilterExpressionBuilder();
-        vectorStore.delete(b.eq("documentId", documentId).build());
+        vectorStore.delete(b.eq("documentId", documentId.toString()).build());
     }
 
     // ===============================
