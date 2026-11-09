@@ -9,12 +9,12 @@ import {
   ArrowLeft,
   AlertCircle,
   FileCheck,
-  Info,
   Clock,
   ShieldCheck,
   CheckCircle2,
   Pencil,
   Power,
+  Trash2,
 } from 'lucide-react';
 import { agentsApi } from '@/api/agents';
 import { faqsApi } from '@/api/faqs';
@@ -26,6 +26,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDate, getStatusVariant } from '@/lib/utils';
 import { toast } from 'sonner';
+import type { FAQDocument } from '@/types/api';
 
 export const AgentDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -34,6 +35,7 @@ export const AgentDetailPage: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [documentToDelete, setDocumentToDelete] = useState<FAQDocument | null>(null);
   const [editName, setEditName] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [isDragging, setIsDragging] = useState(false);
@@ -125,6 +127,18 @@ export const AgentDetailPage: React.FC = () => {
         description: err.message || 'Error uploading document to backend',
       });
       setUploadProgress(null);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (documentId: number) => faqsApi.deleteFaq(agentId, documentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['faqs', agentId] });
+      setDocumentToDelete(null);
+      toast.success('FAQ document deleted successfully');
+    },
+    onError: (err: Error) => {
+      toast.error('Failed to delete FAQ document', { description: err.message });
     },
   });
 
@@ -289,6 +303,47 @@ export const AgentDetailPage: React.FC = () => {
         </DialogContent>
       </Dialog>
 
+      <Dialog
+        open={documentToDelete !== null}
+        onOpenChange={(open) => {
+          if (!open && !deleteMutation.isPending) setDocumentToDelete(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete FAQ document?</DialogTitle>
+            <DialogDescription>
+              This permanently removes the uploaded PDF and its indexed knowledge.
+              This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <p className="break-all rounded-lg bg-muted/40 p-3 text-sm font-medium">
+            {documentToDelete?.fileName}
+          </p>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={deleteMutation.isPending}
+              onClick={() => setDocumentToDelete(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              className="bg-rose-600 text-white hover:bg-rose-700"
+              disabled={!documentToDelete || deleteMutation.isPending}
+              isLoading={deleteMutation.isPending}
+              onClick={() => {
+                if (documentToDelete) deleteMutation.mutate(documentToDelete.id);
+              }}
+            >
+              Delete Document
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Knowledge Base & FAQs Management */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left 1-col: Upload Section */}
@@ -384,14 +439,6 @@ export const AgentDetailPage: React.FC = () => {
             </CardHeader>
 
             <CardContent>
-              {/* Important backend notice: Deletion not supported */}
-              <div className="mb-4 flex items-center space-x-2 rounded-lg border border-amber-500/20 bg-amber-500/10 p-3 text-xs text-amber-600 dark:text-amber-400">
-                <Info className="h-4 w-4 shrink-0" />
-                <span>
-                  The backend provides viewing and uploading endpoints for agent FAQs. File removal is not supported by current API contracts.
-                </span>
-              </div>
-
               {isFaqsError && (
                 <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-xs text-rose-600 dark:text-rose-400">
                   <p className="font-semibold">Unable to fetch FAQ documents</p>
@@ -444,6 +491,17 @@ export const AgentDetailPage: React.FC = () => {
                           <CheckCircle2 className="h-3 w-3 mr-1" />
                           Ingested
                         </span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="text-rose-600 hover:text-rose-700"
+                          disabled={deleteMutation.isPending}
+                          onClick={() => setDocumentToDelete(doc)}
+                          aria-label={`Delete ${doc.fileName}`}
+                        >
+                          <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete
+                        </Button>
                       </div>
                     </div>
                   ))}
