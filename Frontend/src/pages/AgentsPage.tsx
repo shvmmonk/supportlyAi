@@ -35,7 +35,8 @@ const createAgentSchema = z.object({
   name: z
     .string()
     .min(2, 'Agent name must be at least 2 characters')
-    .max(60, 'Agent name must be under 60 characters'),
+    .max(100, 'Agent name must be under 100 characters'),
+  description: z.string().max(500, 'Description cannot exceed 500 characters'),
 });
 
 type CreateAgentFormValues = z.infer<typeof createAgentSchema>;
@@ -68,6 +69,7 @@ export const AgentsPage: React.FC = () => {
     resolver: zodResolver(createAgentSchema),
     defaultValues: {
       name: '',
+      description: '',
     },
   });
 
@@ -87,7 +89,7 @@ export const AgentsPage: React.FC = () => {
   });
 
   const onSubmit = (values: CreateAgentFormValues) => {
-    createMutation.mutate({ name: values.name.trim() });
+    createMutation.mutate({ name: values.name.trim(), description: values.description.trim() });
   };
 
   const handleSearchChange = (val: string) => {
@@ -134,7 +136,7 @@ export const AgentsPage: React.FC = () => {
         <div>
           <span className="font-semibold text-foreground">API Contracts Active:</span> Supports creation via{' '}
           <code className="text-foreground font-mono">POST /api/agents</code> and listing via{' '}
-          <code className="text-foreground font-mono">GET /api/agents</code>. In accordance with current backend endpoints, editing and deletion are disabled until future API releases.
+          <code className="text-foreground font-mono">GET /api/agents</code>. Editing and status updates are also supported by the backend. Agent deletion is not currently available.
         </div>
       </div>
 
@@ -264,7 +266,7 @@ export const AgentsPage: React.FC = () => {
                       {agent.name}
                     </CardTitle>
                     <CardDescription className="text-xs mt-1">
-                      Agent ID #{agent.id}
+                      {agent.description || `Agent ID #${agent.id}`}
                     </CardDescription>
                   </div>
                 </CardHeader>
@@ -326,9 +328,22 @@ export const AgentsPage: React.FC = () => {
               )}
             </div>
 
-            <div className="rounded-lg bg-muted/40 p-3 text-[11px] text-muted-foreground space-y-1">
-              <p className="font-medium text-foreground/80">API Contract Details</p>
-              <p>Will send payload <code className="text-foreground font-mono">&#123; "name": "..." &#125;</code> to <code className="text-foreground font-mono">POST /api/agents</code> with Bearer JWT.</p>
+            <div className="space-y-1.5">
+              <Label htmlFor="agentDescription">Description (optional)</Label>
+              <Input
+                id="agentDescription"
+                placeholder="e.g. Helps customers with orders and returns"
+                error={!!errors.description}
+                disabled={createMutation.isPending}
+                {...register('description')}
+              />
+              {errors.description && (
+                <p className="text-xs text-rose-500 font-medium">{errors.description.message}</p>
+              )}
+            </div>
+
+            <div className="rounded-lg bg-muted/40 p-3 text-[11px] text-muted-foreground">
+              Your agent name and description will be saved securely to your account.
             </div>
 
             <DialogFooter className="pt-2">
