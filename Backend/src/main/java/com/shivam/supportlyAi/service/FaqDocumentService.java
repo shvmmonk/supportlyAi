@@ -26,164 +26,142 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class FaqDocumentService {
 
-    private final FaqDocumentRepository faqDocumentRepository;
-    private final AgentRepository agentRepository;
-    private final UserRepository userRepository;
-    private final FileStorageService fileStorageService;
-    private final RagService ragService;
+        private final FaqDocumentRepository faqDocumentRepository;
+        private final AgentRepository agentRepository;
+        private final UserRepository userRepository;
+        private final FileStorageService fileStorageService;
+        private final RagService ragService;
 
-    public FaqDocumentResponse uploadFaq(
-            Long agentId,
-            MultipartFile file
-    ) throws java.io.IOException {
+        public FaqDocumentResponse uploadFaq(
+                        Long agentId,
+                        MultipartFile file) throws java.io.IOException {
 
-        // A) Current logged-in user nikaalo
-        String email = SecurityContextHolder
-                .getContext()
-                .getAuthentication()
-                .getName();
+                // A) Current logged-in user nikaalo
+                String email = SecurityContextHolder
+                                .getContext()
+                                .getAuthentication()
+                                .getName();
 
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("User not found")
-                );
+                User user = userRepository.findByEmail(email)
+                                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        // B) Agent nikaalo aur ownership verify karo
-        Agent agent = agentRepository.findById(agentId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("Agent not found")
-                );
+                // B) Agent nikaalo aur ownership verify karo
+                Agent agent = agentRepository.findById(agentId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Agent not found"));
 
-        if (!agent.getOwner().getId().equals(user.getId())) {
-            throw new UnauthorizedAccessException(
-                    "You don't have permission to upload to this agent"
-            );
+                if (!agent.getOwner().getId().equals(user.getId())) {
+                        throw new UnauthorizedAccessException(
+                                        "You don't have permission to upload to this agent");
+                }
+
+                // C) File validation
+                if (file.isEmpty()) {
+                        throw new InvalidFileException("File is empty");
+                }
+
+                String originalFileName = file.getOriginalFilename();
+
+                if (originalFileName == null ||
+                                !originalFileName.toLowerCase().endsWith(".pdf")) {
+
+                        throw new InvalidFileException(
+                                        "Only PDF files are allowed");
+                }
+
+                // D) File ko disk pe save karo
+                String filePath = fileStorageService.storeFile(file);
+
+                // E) DB record banao
+                FaqDocument faqDocument = new FaqDocument();
+
+                faqDocument.setFileName(originalFileName);
+                faqDocument.setFilePath(filePath);
+                faqDocument.setAgent(agent);
+                faqDocument.setUploadedAt(LocalDateTime.now());
+
+                FaqDocument saved = faqDocumentRepository.save(faqDocument);
+
+                // F) PDF ko RAG pipeline mein process karo
+                ragService.processPdf(
+                                saved.getFilePath(),
+                                agent.getId(),
+                                saved.getId());
+
+                // G) Response DTO return karo
+                return new FaqDocumentResponse(
+                                saved.getId(),
+                                saved.getFileName(),
+                                saved.getUploadedAt());
         }
 
-        // C) File validation
-        if (file.isEmpty()) {
-            throw new InvalidFileException("File is empty");
+        public List<FaqDocumentResponse> getFaqsForAgent(Long agentId) {
+
+                // Current logged-in user nikaalo
+                String email = SecurityContextHolder
+                                .getContext()
+                                .getAuthentication()
+                                .getName();
+
+                User user = userRepository.findByEmail(email)
+                                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+                // Agent nikaalo
+                Agent agent = agentRepository.findById(agentId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Agent not found"));
+
+                // Ownership verify karo
+                if (!agent.getOwner().getId().equals(user.getId())) {
+                        throw new UnauthorizedAccessException(
+                                        "You don't have permission to view this agent's FAQs");
+                }
+
+                // Agent ke FAQs nikaalo
+                List<FaqDocument> faqDocuments = faqDocumentRepository.findByAgent(agent);
+
+                // Entity → DTO
+                return faqDocuments.stream()
+                                .map(doc -> new FaqDocumentResponse(
+                                                doc.getId(),
+                                                doc.getFileName(),
+                                                doc.getUploadedAt()))
+                                .collect(Collectors.toList());
         }
 
-        String originalFileName = file.getOriginalFilename();
+        @Transactional
+        public void deleteFaq(Long agentId, Long documentId) {
+                String email = SecurityContextHolder
+                                .getContext()
+                                .getAuthentication()
+                                .getName();
 
-        if (originalFileName == null ||
-                !originalFileName.toLowerCase().endsWith(".pdf")) {
+                User user = userRepository.findByEmail(email)
+                                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-            throw new InvalidFileException(
-                    "Only PDF files are allowed"
-            );
+                Agent agent = agentRepository.findById(agentId)
+                                .orElseThrow(() -> new ResourceNotFoundException(
+                                                "Agent not found with ID: " + agentId));
+
+                if (!agent.getOwner().getId().equals(user.getId())) {
+                        throw new UnauthorizedAccessException(
+                                        "You don't have permission to modify this agent's documents");
+                }
+
+                FaqDocument faqDocument = faqDocumentRepository.findById(documentId)
+                                .orElseThrow(() -> new ResourceNotFoundException(
+                                                "Document not found with ID: " + documentId));
+
+                if (faqDocument.getAgent().getId() != agent.getId()) {
+                        throw new UnauthorizedAccessException(
+                                        "Document does not belong to the specified agent");
+                }
+
+                // 1. Remove associated vectors from Qdrant
+                ragService.deleteDocumentVectors(faqDocument.getId());
+
+                // 2. Remove physical file from disk
+                fileStorageService.deleteFile(faqDocument.getFilePath());
+
+                // 3. Remove DB record
+                faqDocumentRepository.delete(faqDocument);
         }
-
-        // D) File ko disk pe save karo
-        String filePath = fileStorageService.storeFile(file);
-
-        // E) DB record banao
-        FaqDocument faqDocument = new FaqDocument();
-
-        faqDocument.setFileName(originalFileName);
-        faqDocument.setFilePath(filePath);
-        faqDocument.setAgent(agent);
-        faqDocument.setUploadedAt(LocalDateTime.now());
-
-        FaqDocument saved = faqDocumentRepository.save(faqDocument);
-
-        // F) PDF ko RAG pipeline mein process karo
-        ragService.processPdf(
-                saved.getFilePath(),
-                agent.getId(),
-                saved.getId()
-        );
-
-        // G) Response DTO return karo
-        return new FaqDocumentResponse(
-                saved.getId(),
-                saved.getFileName(),
-                saved.getUploadedAt()
-        );
-    }
-
-    public List<FaqDocumentResponse> getFaqsForAgent(Long agentId) {
-
-        // Current logged-in user nikaalo
-        String email = SecurityContextHolder
-                .getContext()
-                .getAuthentication()
-                .getName();
-
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("User not found")
-                );
-
-        // Agent nikaalo
-        Agent agent = agentRepository.findById(agentId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("Agent not found")
-                );
-
-        // Ownership verify karo
-        if (!agent.getOwner().getId().equals(user.getId())) {
-            throw new UnauthorizedAccessException(
-                    "You don't have permission to view this agent's FAQs"
-            );
-        }
-
-        // Agent ke FAQs nikaalo
-        List<FaqDocument> faqDocuments =
-                faqDocumentRepository.findByAgent(agent);
-
-        // Entity → DTO
-        return faqDocuments.stream()
-                .map(doc -> new FaqDocumentResponse(
-                        doc.getId(),
-                        doc.getFileName(),
-                        doc.getUploadedAt()
-                ))
-                .collect(Collectors.toList());
-    }
-
-    @Transactional
-    public void deleteFaq(Long agentId, Long documentId) {
-        String email = SecurityContextHolder
-                .getContext()
-                .getAuthentication()
-                .getName();
-
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("User not found")
-                );
-
-        Agent agent = agentRepository.findById(agentId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("Agent not found with ID: " + agentId)
-                );
-
-        if (!agent.getOwner().getId().equals(user.getId())) {
-            throw new UnauthorizedAccessException(
-                    "You don't have permission to modify this agent's documents"
-            );
-        }
-
-        FaqDocument faqDocument = faqDocumentRepository.findById(documentId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("Document not found with ID: " + documentId)
-                );
-
-        if (faqDocument.getAgent().getId() != agent.getId()) {
-            throw new UnauthorizedAccessException(
-                    "Document does not belong to the specified agent"
-            );
-        }
-
-        // 1. Remove associated vectors from Qdrant
-        ragService.deleteDocumentVectors(faqDocument.getId());
-
-        // 2. Remove physical file from disk
-        fileStorageService.deleteFile(faqDocument.getFilePath());
-
-        // 3. Remove DB record
-        faqDocumentRepository.delete(faqDocument);
-    }
 }

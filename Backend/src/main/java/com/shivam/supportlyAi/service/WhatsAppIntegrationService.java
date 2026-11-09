@@ -46,13 +46,13 @@ public class WhatsAppIntegrationService {
             String display = integration.getDisplayPhoneNumber() != null ? maskPhoneNumber(integration.getDisplayPhoneNumber()) : masked;
 
             return WhatsAppIntegrationStatusResponse.builder()
-                    .connected(integration.isActive())
+                    .connected(integration.isActive() && integration.isVerified())
                     .mode("PRODUCTION")
                     .phoneNumberId(masked)
                     .displayPhoneNumber(display)
                     .assignedAgentId(integration.getAgent() != null ? integration.getAgent().getId() : null)
                     .assignedAgentName(integration.getAgent() != null ? integration.getAgent().getName() : null)
-                    .status(integration.isActive() ? "ACTIVE" : "DISCONNECTED")
+                    .status(!integration.isActive() ? "DISCONNECTED" : integration.isVerified() ? "ACTIVE" : "PENDING_VERIFICATION")
                     .verified(integration.isVerified())
                     .build();
         }
@@ -95,9 +95,12 @@ public class WhatsAppIntegrationService {
         if (phoneId == null || phoneId.isBlank()) {
             throw new IllegalArgumentException("WhatsApp Phone Number ID must be provided or configured in environment");
         }
+        phoneId = phoneId.trim();
+
+        final String resolvedPhoneId = phoneId;
 
         // Check if another business owns this phone number ID
-        Optional<WhatsAppIntegration> existingForPhone = integrationRepository.findByPhoneNumberId(phoneId);
+        Optional<WhatsAppIntegration> existingForPhone = integrationRepository.findByPhoneNumberId(resolvedPhoneId);
         if (existingForPhone.isPresent() && !existingForPhone.get().getBusinessOwner().getId().equals(user.getId())) {
             throw new UnauthorizedAccessException("This WhatsApp Phone Number ID is already assigned to another business");
         }
@@ -106,14 +109,15 @@ public class WhatsAppIntegrationService {
                 .orElseGet(() -> {
                     WhatsAppIntegration wi = new WhatsAppIntegration();
                     wi.setBusinessOwner(user);
-                    wi.setPhoneNumberId(finalPhoneId(request.getPhoneNumberId()));
+                    wi.setPhoneNumberId(resolvedPhoneId);
                     wi.setCreatedAt(LocalDateTime.now());
                     return wi;
                 });
 
         integration.setAgent(agent);
         integration.setActive(true);
-        integration.setVerified(true);
+        // Assigning an agent is not proof of Meta webhook verification.
+        // Preserve the current verified flag; new integrations default to false.
         if (request.getDisplayPhoneNumber() != null && !request.getDisplayPhoneNumber().isBlank()) {
             integration.setDisplayPhoneNumber(request.getDisplayPhoneNumber().trim());
         }
@@ -125,22 +129,15 @@ public class WhatsAppIntegrationService {
         String display = saved.getDisplayPhoneNumber() != null ? maskPhoneNumber(saved.getDisplayPhoneNumber()) : masked;
 
         return WhatsAppIntegrationStatusResponse.builder()
-                .connected(true)
+                .connected(saved.isActive() && saved.isVerified())
                 .mode("PRODUCTION")
                 .phoneNumberId(masked)
                 .displayPhoneNumber(display)
                 .assignedAgentId(agent.getId())
                 .assignedAgentName(agent.getName())
-                .status("ACTIVE")
-                .verified(true)
+                .status(saved.isVerified() ? "ACTIVE" : "PENDING_VERIFICATION")
+                .verified(saved.isVerified())
                 .build();
-    }
-
-    private String finalPhoneId(String requestedId) {
-        if (requestedId != null && !requestedId.isBlank()) {
-            return requestedId.trim();
-        }
-        return defaultPhoneNumberId != null ? defaultPhoneNumberId.trim() : "default";
     }
 
     private String maskNumber(String val) {

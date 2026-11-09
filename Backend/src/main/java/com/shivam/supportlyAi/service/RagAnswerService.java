@@ -21,17 +21,7 @@ public class RagAnswerService {
         // 1. Search relevant documents from Qdrant
         List<Document> documents = ragService.search(question, agentId);
 
-        System.out.println("========== RAG DEBUG ==========");
-System.out.println("Agent ID: " + agentId);
-System.out.println("Retrieved documents: " + documents.size());
-
-for (Document doc : documents) {
-    System.out.println("Metadata: " + doc.getMetadata());
-    System.out.println("Content: " + doc.getText());
-}
-
-System.out.println("===============================");
-
+        
         // 2. If nothing relevant is found
         if (documents.isEmpty()) {
             return "Sorry, I don't have enough information to answer that question.";

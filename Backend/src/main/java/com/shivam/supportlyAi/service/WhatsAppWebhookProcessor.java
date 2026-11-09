@@ -241,7 +241,8 @@ public class WhatsAppWebhookProcessor {
             var opt = integrationRepository.findByPhoneNumberId(phoneNumberId);
             if (opt.isPresent() && opt.get().isActive() && opt.get().getAgent() != null) {
                 Agent agent = opt.get().getAgent();
-                if (agent.getStatus() == AgentStatus.ACTIVE) {
+                if (agent.getStatus() == AgentStatus.ACTIVE
+                        && agent.getOwner().getId().equals(opt.get().getBusinessOwner().getId())) {
                     return agent;
                 } else {
                     log.info("Mapped agent {} is currently INACTIVE", agent.getId());
@@ -249,17 +250,9 @@ public class WhatsAppWebhookProcessor {
             }
         }
 
-        // Fallback: Check if agent 13L exists (preserves existing tested Medical Store agent)
-        var fallbackAgent = agentRepository.findById(13L);
-        if (fallbackAgent.isPresent()) {
-            return fallbackAgent.get();
-        }
-
-        // Fallback 2: Any active agent
-        return agentRepository.findAll().stream()
-                .filter(a -> a.getStatus() == AgentStatus.ACTIVE)
-                .findFirst()
-                .orElse(null);
+        // Fail closed: never route an unmapped phone number to another tenant.
+        log.warn("No active WhatsApp integration and active agent for phone_number_id: {}", phoneNumberId);
+        return null;
     }
 
     private boolean isDuplicateMessage(String messageId) {
