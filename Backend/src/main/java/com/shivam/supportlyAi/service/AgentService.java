@@ -23,99 +23,103 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class AgentService {
-    private final AgentRepository agentRepository;
-    private final UserRepository userRepository;
+        private final AgentRepository agentRepository;
+        private final UserRepository userRepository;
 
-    public AgentResponse createAgent(CreateAgentRequest request) {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        public AgentResponse createAgent(CreateAgentRequest request) {
+                String email = SecurityContextHolder.getContext().getAuthentication().getName();
 
-        User owner = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                User owner = userRepository.findByEmail(email)
+                                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        Agent agent = new Agent();
-        agent.setName(request.getName());
-        agent.setStatus(AgentStatus.INACTIVE);
-        agent.setOwner(owner);
-        agent.setCreatedAt(LocalDateTime.now());
+                Agent agent = new Agent();
+                agent.setName(request.getName().trim());
+                agent.setDescription(
+                                request.getDescription() == null
+                                                ? null
+                                                : request.getDescription().trim());
+                agent.setStatus(AgentStatus.INACTIVE);
+                agent.setOwner(owner);
+                agent.setCreatedAt(LocalDateTime.now());
 
-        Agent savedAgent = agentRepository.save(agent);
+                Agent savedAgent = agentRepository.save(agent);
 
-        return new AgentResponse(
-                savedAgent.getId(),
-                savedAgent.getName(),
-                savedAgent.getDescription(),
-                savedAgent.getStatus(),
-                savedAgent.getCreatedAt());
-    }
-
-    public List<AgentResponse> getAgentForCurrentUser() {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        User owner = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
-        List<Agent> agents = agentRepository.findByOwner(owner);
-
-        return agents.stream().map(agent -> new AgentResponse(
-                agent.getId(),
-                agent.getName(),
-                agent.getDescription(),
-                agent.getStatus(),
-                agent.getCreatedAt()
-        )).collect(Collectors.toList());
-    }
-
-    public AgentResponse updateAgent(Long agentId, UpdateAgentRequest request) {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        User owner = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
-        Agent agent = agentRepository.findById(agentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Agent not found with ID: " + agentId));
-
-        if (!agent.getOwner().getId().equals(owner.getId())) {
-            throw new UnauthorizedAccessException("You don't have permission to modify this agent");
+                return new AgentResponse(
+                                savedAgent.getId(),
+                                savedAgent.getName(),
+                                savedAgent.getDescription(),
+                                savedAgent.getStatus(),
+                                savedAgent.getCreatedAt());
         }
 
-        if (request.getName() != null && !request.getName().isBlank()) {
-            agent.setName(request.getName().trim());
+        public List<AgentResponse> getAgentForCurrentUser() {
+                String email = SecurityContextHolder.getContext().getAuthentication().getName();
+                User owner = userRepository.findByEmail(email)
+                                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+                List<Agent> agents = agentRepository.findByOwner(owner);
+
+                return agents.stream().map(agent -> new AgentResponse(
+                                agent.getId(),
+                                agent.getName(),
+                                agent.getDescription(),
+                                agent.getStatus(),
+                                agent.getCreatedAt())).collect(Collectors.toList());
         }
 
-        if (request.getDescription() != null) {
-            agent.setDescription(request.getDescription().trim());
+        public AgentResponse updateAgent(Long agentId, UpdateAgentRequest request) {
+                String email = SecurityContextHolder.getContext().getAuthentication().getName();
+                User owner = userRepository.findByEmail(email)
+                                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+                Agent agent = agentRepository.findById(agentId)
+                                .orElseThrow(() -> new ResourceNotFoundException(
+                                                "Agent not found with ID: " + agentId));
+
+                if (!agent.getOwner().getId().equals(owner.getId())) {
+                        throw new UnauthorizedAccessException("You don't have permission to modify this agent");
+                }
+
+                if (request.getName() != null && !request.getName().isBlank()) {
+                        agent.setName(request.getName().trim());
+                }
+
+                if (request.getDescription() != null) {
+                        agent.setDescription(request.getDescription().trim());
+                }
+
+                Agent updated = agentRepository.save(agent);
+
+                return new AgentResponse(
+                                updated.getId(),
+                                updated.getName(),
+                                updated.getDescription(),
+                                updated.getStatus(),
+                                updated.getCreatedAt());
         }
 
-        Agent updated = agentRepository.save(agent);
+        public AgentResponse updateAgentStatus(Long agentId, AgentStatus newStatus) {
+                String email = SecurityContextHolder.getContext().getAuthentication().getName();
+                User owner = userRepository.findByEmail(email)
+                                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        return new AgentResponse(
-                updated.getId(),
-                updated.getName(),
-                updated.getDescription(),
-                updated.getStatus(),
-                updated.getCreatedAt()
-        );
-    }
+                Agent agent = agentRepository.findById(agentId)
+                                .orElseThrow(() -> new ResourceNotFoundException(
+                                                "Agent not found with ID: " + agentId));
 
-    public AgentResponse updateAgentStatus(Long agentId, AgentStatus newStatus) {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        User owner = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                if (!agent.getOwner().getId().equals(owner.getId())) {
+                        throw new UnauthorizedAccessException(
+                                        "You don't have permission to modify this agent's status");
+                }
 
-        Agent agent = agentRepository.findById(agentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Agent not found with ID: " + agentId));
+                agent.setStatus(newStatus);
+                Agent updated = agentRepository.save(agent);
 
-        if (!agent.getOwner().getId().equals(owner.getId())) {
-            throw new UnauthorizedAccessException("You don't have permission to modify this agent's status");
+                return new AgentResponse(
+                                updated.getId(),
+                                updated.getName(),
+                                updated.getDescription(),
+                                updated.getStatus(),
+                                updated.getCreatedAt());
         }
-
-        agent.setStatus(newStatus);
-        Agent updated = agentRepository.save(agent);
-
-        return new AgentResponse(
-                updated.getId(),
-                updated.getName(),
-                updated.getDescription(),
-                updated.getStatus(),
-                updated.getCreatedAt()
-        );
-    }
 }
