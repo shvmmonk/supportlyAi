@@ -84,12 +84,18 @@ public class WhatsAppWebhookProcessor {
                         if (message.getDirection() != MessageDirection.OUTGOING) return;
                         MessageStatus current = message.getStatus();
                         MessageStatus next = switch (event) {
-                            case "sent" -> current == MessageStatus.SENT ? MessageStatus.SENT : current;
-                            case "delivered" -> current == MessageStatus.READ || current == MessageStatus.FAILED
-                                    ? current : MessageStatus.DELIVERED;
-                            case "read" -> current == MessageStatus.FAILED ? current : MessageStatus.READ;
-                            case "failed" -> current == MessageStatus.READ || current == MessageStatus.DELIVERED
-                                    ? current : MessageStatus.FAILED;
+                            case "sent" ->
+                                    current == MessageStatus.PENDING
+                                            || current == MessageStatus.UNKNOWN
+                                            ? MessageStatus.SENT : current;
+                            case "delivered" ->
+                                    current == MessageStatus.READ
+                                            ? current : MessageStatus.DELIVERED;
+                            case "read" -> MessageStatus.READ;
+                            case "failed" ->
+                                    current == MessageStatus.READ
+                                            || current == MessageStatus.DELIVERED
+                                            ? current : MessageStatus.FAILED;
                             default -> current;
                         };
                         if (next != current) {
@@ -189,7 +195,7 @@ public class WhatsAppWebhookProcessor {
                 outgoing.setConversation(conversation);
                 outgoing.setDirection(MessageDirection.OUTGOING);
                 outgoing.setContent(answer);
-                outgoing.setStatus(MessageStatus.SENT); // Pending send; see Meta ID / logs for confirmation.
+                outgoing.setStatus(MessageStatus.PENDING);
                 outgoing.setTimestamp(LocalDateTime.now());
                 return chatMessageRepository.saveAndFlush(outgoing).getId();
             });
@@ -204,7 +210,10 @@ public class WhatsAppWebhookProcessor {
             transactionTemplate.executeWithoutResult(tx -> {
                 ChatMessage outgoing = chatMessageRepository.findById(outgoingId).orElseThrow();
                 outgoing.setMetaMessageId(metaId);
-                // Do not overwrite a status callback if it has already been applied.
+                if (outgoing.getStatus() == MessageStatus.PENDING
+                        || outgoing.getStatus() == MessageStatus.UNKNOWN) {
+                    outgoing.setStatus(MessageStatus.SENT);
+                }
                 chatMessageRepository.save(outgoing);
                 Conversation conversation = outgoing.getConversation();
                 conversation.setLastMessage(answer);
@@ -218,8 +227,10 @@ public class WhatsAppWebhookProcessor {
             try {
                 transactionTemplate.executeWithoutResult(tx -> {
                     ChatMessage outgoing = chatMessageRepository.findById(outgoingId).orElseThrow();
-                    if (outgoing.getMetaMessageId() == null && outgoing.getStatus() == MessageStatus.SENT) {
-                        outgoing.setStatus(MessageStatus.FAILED);
+                    if (outgoing.getMetaMessageId() == null
+                            && (outgoing.getStatus() == MessageStatus.PENDING
+                                    || outgoing.getStatus() == MessageStatus.SENT)) {
+                        outgoing.setStatus(MessageStatus.UNKNOWN);
                         chatMessageRepository.save(outgoing);
                     }
                 });
